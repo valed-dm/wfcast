@@ -117,14 +117,6 @@ jobs:
           pip install safety
           safety check --full-report
 
-      - name: Trivy Docker Image Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'your-image:latest'
-          format: 'table'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
