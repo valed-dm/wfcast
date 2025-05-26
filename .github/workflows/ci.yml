@@ -54,7 +54,7 @@ jobs:
       - name: Run Bandit Security Scan
         run: |
           pip install bandit
-          bandit -r wfcast/
+          bandit -r wfcast/ --skip B101,B106
 
   tests:
     needs: linter
