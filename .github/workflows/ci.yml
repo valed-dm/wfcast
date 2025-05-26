@@ -1,0 +1,135 @@
+name: CI
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  POSTGRES_DB: mydb
+  POSTGRES_USER: user
+  POSTGRES_PASSWORD: pass
+
+on:
+  pull_request:
+    branches: ['master', 'main', 'dev']
+    paths-ignore: ['docs/**']
+  push:
+    branches: ['master', 'main', 'dev']
+    paths-ignore: ['docs/**']
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+
+jobs:
+
+  linter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+
+      - name: Run Bandit Security Scan
+        run: |
+          pip install bandit
+          bandit -r wfcast/
+
+  tests:
+    needs: linter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and cache backend services
+        uses: docker/bake-action@v6
+        with:
+          push: false
+          load: true
+          files: docker-compose.local.yml
+          targets: django
+          set: |
+            django.cache-from=type=gha,scope=django-cached-tests
+            django.cache-to=type=gha,scope=django-cached-tests,mode=max
+            postgres.cache-from=type=gha,scope=postgres-cached-tests
+            postgres.cache-to=type=gha,scope=postgres-cached-tests,mode=max
+
+      - name: Check Migrations
+        run: docker compose -f docker-compose.local.yml run --rm django python manage.py makemigrations --check
+
+      - name: Run Migrations
+        run: docker compose -f docker-compose.local.yml run --rm django python manage.py migrate
+
+      - name: Run Tests
+        run: docker compose -f docker-compose.local.yml run django pytest
+
+      - name: Teardown
+        run: docker compose -f docker-compose.local.yml down --volumes
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Safety
+        run: |
+          pip install safety
+          safety check --full-report
+
+      - name: Trivy Docker Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'your-image:latest'
+          format: 'table'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Scan for secrets using Gitleaks
+        uses: zricethezav/gitleaks-action@v2.3.4

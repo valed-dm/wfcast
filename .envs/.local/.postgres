@@ -1,0 +1,7 @@
+# PostgreSQL
+# ------------------------------------------------------------------------------
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=wfcast
+POSTGRES_USER=rOZaopqdnVqbbpaZsIyRpZMbbrpvmvSu
+POSTGRES_PASSWORD=RlP1VQKdqudQyEljNAxVc9gNSoRfLcli0Z7f1oyghw05uxA1UVkmITQVs399d4hl
