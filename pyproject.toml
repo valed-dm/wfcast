@@ -16,9 +16,9 @@ dependencies = [
     "argon2-cffi==23.1.0",
     "whitenoise==6.9.0",
     "redis==6.1.0",
-    "hiredis==3.2.0",
+    "hiredis==3.2.1",
     # Django core
-    "django==5.1.9",
+    "django==5.2.1",
     "django-environ==0.12.0",
     "django-model-utils==5.0.0",
     "django-allauth[mfa]==65.8.1",
@@ -48,11 +48,11 @@ dev = [
     "sphinx-autobuild==2024.10.3",
     # Code quality
     "ruff==0.11.11",
-    "coverage==7.8.1",
+    "coverage==7.8.2",
     "djlint==1.36.4",
     "pre-commit==4.2.0",
     # Django dev tools
-    "factory-boy==3.3.2",
+    "factory-boy==3.3.3",
     "django-debug-toolbar==5.2.0",
     "django-extensions==4.1",
     "django-coverage-plugin==3.1.0",
