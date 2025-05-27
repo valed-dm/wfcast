@@ -12,7 +12,7 @@ from django.shortcuts import render
 
 from wfcast.weather.models import City
 from wfcast.weather.models import SearchHistory
-from wfcast.weather.utils import fetch_geocoding_data
+from wfcast.weather.utils import fetch_autocomplete_suggestions
 from wfcast.weather.utils import fetch_weather_api_data
 from wfcast.weather.utils import parse_iso_strings_in_forecast_data
 from wfcast.weather.utils import parse_session_location_data
@@ -72,7 +72,7 @@ def _handle_autocomplete_request(request: HttpRequest) -> HttpResponse:
             {"results": cached_results},
         )
 
-    api_results = fetch_geocoding_data(query)
+    api_results = fetch_autocomplete_suggestions(query)
     cache.set(cache_key, api_results, timeout=AUTOCOMPLETE_CACHE_TIMEOUT)
 
     return render(

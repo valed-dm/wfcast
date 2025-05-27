@@ -17,43 +17,81 @@ GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
 GEOCODING_API_TIMEOUT = 3  # seconds
 GEOCODING_RESULT_COUNT = 5
 GEOCODING_LANGUAGE = "en"
+DEFAULT_AUTOCOMPLETE_RESULT_COUNT = 5
 SEARCH_MIN_LETTERS = 2
 ONE_LETTER = 1
 
 
-def fetch_geocoding_data(query: str) -> list[dict[str, Any]]:
+def _call_geocoding_api(query: str, count: int) -> list[dict[str, Any]] | None:
     """
-    Fetches geocoding data from the Open-Meteo API for a given query.
+    Internal helper to make the actual API call to Open-Meteo Geocoding.
 
     Args:
-        query: The city name or search term.
+        query: The search term.
+        count: The number of results to fetch.
 
     Returns:
-        A list of result dictionaries from the API, or an empty list on failure.
+        A list of raw result items from the API, or None on failure.
     """
-    api_results: list[dict[str, Any]] = []
     try:
         response = requests.get(
             GEOCODING_API_URL,
             params={
                 "name": query,
-                "count": GEOCODING_RESULT_COUNT,
+                "count": count,
                 "language": GEOCODING_LANGUAGE,
             },
             timeout=GEOCODING_API_TIMEOUT,
         )
-        response.raise_for_status()
-
+        response.raise_for_status()  # Raises HTTPError for bad responses
         data = response.json()
-        raw_results = data.get("results", [])
+        return data.get(
+            "results",
+            [],
+        )  # Return a list of results or empty list if "results" key missing
+    except requests.exceptions.Timeout:
+        warn_msg = (
+            f"Timeout during geocoding API call for query: '{query}'"
+            f" with count: {count}"
+        )
+        logger.warning(warn_msg)
+    except requests.exceptions.RequestException as e:
+        exc_msg = (
+            f"Error during geocoding API call for query '{query}' with count:"
+            f" {count}: {e}"
+        )
+        logger.exception(exc_msg)
+    return None
 
-        for item in raw_results:
+
+def fetch_autocomplete_suggestions(
+    query: str,
+    count: int = DEFAULT_AUTOCOMPLETE_RESULT_COUNT,
+) -> list[dict[str, Any]]:
+    """
+    Fetches and formats geocoding data suitable for autocomplete suggestions.
+
+    Args:
+        query: The city name or search term.
+        count: The maximum number of suggestions to return.
+
+    Returns:
+        A list of formatted result dictionaries for autocomplete,
+        or an empty list on failure.
+    """
+    raw_results = _call_geocoding_api(query, count)
+    if raw_results is None:  # API call failed
+        return []
+
+    suggestions: list[dict[str, Any]] = []
+    for item in raw_results:
+        try:
             city_name = item.get("name", "").strip()
             admin1 = item.get("admin1", "").strip()
             country_code = item.get("country_code", "").strip()
             city_name = city_name.replace("'", "").replace('"', "").strip()
 
-            api_results.append(
+            suggestions.append(
                 {
                     "city": city_name,
                     "admin1": admin1,
@@ -62,62 +100,77 @@ def fetch_geocoding_data(query: str) -> list[dict[str, Any]]:
                     "full_display": f"{city_name}, {admin1}, {country_code}"
                     if admin1
                     else f"{city_name}, {country_code}",
-                    "lat": item.get("latitude"),
-                    "lon": item.get("longitude"),
+                    "lat": item.get("latitude"),  # Will be float or None
+                    "lon": item.get("longitude"),  # Will be float or None
                 },
             )
-    except requests.exceptions.Timeout:
-        warn_msg = f"Timeout during geocoding API call for query: {query}"
-        logger.warning(warn_msg)
-    except requests.exceptions.RequestException as e:
-        exc_msg = f"Error during geocoding API call for query '{query}': {e}"
-        logger.exception(exc_msg)
+        except (KeyError, TypeError) as e:
+            warn_msg = (
+                f"Skipping item due to parsing error in autocomplete data:"
+                f" {item}, Error: {e}"
+            )
+            logger.warning(warn_msg)
+            continue
+    return suggestions
 
-    return api_results
 
-
-def geocode_city_name(city_name_str: str) -> dict[str, Any] | None:
+def geocode_exact_city_location(city_name_str: str) -> dict[str, Any] | None:
     """
-    Geocodes a city name string using Open-Meteo Geocoding API.
+    Geocodes a city name string to get a single, specific location.
+
+    Args:
+        city_name_str: The city name to geocode.
 
     Returns:
-        A dictionary with 'lat', 'lon', 'display_name', 'name_component',
-        'admin1_component', 'country_component', or None if not found.
+        A dictionary with 'lat', 'lon', 'display_name', and components,
+        or None if not found or an error occurs.
     """
+    raw_results = _call_geocoding_api(
+        city_name_str,
+        count=1,
+    )  # Always fetch 1 for the exact match
+
+    if not raw_results:  # API call failed or no results
+        return None
+
     try:
-        response = requests.get(
-            GEOCODING_API_URL,
-            params={
-                "name": city_name_str,
-                "count": GEOCODING_RESULT_COUNT,
-                "language": GEOCODING_LANGUAGE,
-            },
-            timeout=GEOCODING_API_TIMEOUT,
+        item = raw_results[0]  # Get the first (and hopefully only) result
+        city = item.get("name", "").strip()
+        admin1 = item.get("admin1", "").strip()
+        country = item.get("country_code", "").strip()
+
+        display_name_parts = [part for part in [city, admin1, country] if part]
+        display_name = ", ".join(display_name_parts)
+
+        latitude = item.get("latitude")
+        longitude = item.get("longitude")
+
+        if latitude is None or longitude is None:
+            warn_msg = (
+                f"Geocoding for '{city_name_str}' missing lat/lon in result: {item}"
+            )
+            logger.warning(warn_msg)
+            return None
+
+        return {
+            "lat": float(latitude),
+            "lon": float(longitude),
+            "display_name": display_name,
+            "name_component": city,
+            "admin1_component": admin1,
+            "country_component": country,
+        }
+    except (
+        IndexError,
+        KeyError,
+        ValueError,
+        TypeError,
+    ) as e:  # Catch various parsing/conversion errors
+        exc_msg = (
+            f"Error processing geocoding result for '{city_name_str}':"
+            f" {raw_results[0] if raw_results else 'No raw results'},"
+            f" Error: {e}"
         )
-        response.raise_for_status()
-        data = response.json()
-        if data.get("results"):
-            item = data["results"][0]
-            city = item.get("name", "").strip()
-            admin1 = item.get("admin1", "").strip()
-            country = item.get("country_code", "").strip()
-
-            display_name_parts = [part for part in [city, admin1, country] if part]
-            display_name = ", ".join(display_name_parts)
-
-            return {
-                "lat": float(item["latitude"]),
-                "lon": float(item["longitude"]),
-                "display_name": display_name,
-                "name_component": city,
-                "admin1_component": admin1,
-                "country_component": country,
-            }
-    except requests.RequestException as e:
-        exc_msg = f"Geocoding API failed for '{city_name_str}': {e}"
-        logger.exception(exc_msg)
-    except (ValueError, KeyError, IndexError) as e:
-        exc_msg = f"Error processing geocoding response for '{city_name_str}': {e}"
         logger.exception(exc_msg)
     return None
 
@@ -230,7 +283,7 @@ def parse_session_location_data(  # noqa: C901,PLR0911,PLR0912,PLR0915
                 # Attempt to geocode based on the display name if lat/lon are missing
                 display_name_from_dict = session_data.get("display")
                 if display_name_from_dict:
-                    geocoded = geocode_city_name(display_name_from_dict)
+                    geocoded = geocode_exact_city_location(display_name_from_dict)
                     if geocoded:
                         return geocoded  # Return early with geocoded data
                 return (
@@ -288,7 +341,7 @@ def parse_session_location_data(  # noqa: C901,PLR0911,PLR0912,PLR0915
                 logger.warning(warn_msg)
 
         if lat is None or lon is None:  # If not "lat,lon" or parsing failed
-            geocoded = geocode_city_name(session_data)
+            geocoded = geocode_exact_city_location(session_data)
             if not geocoded:
                 warn_msg = f"Could not geocode location string: {session_data}"
                 logger.warning(warn_msg)
