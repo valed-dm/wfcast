@@ -1,0 +1,27 @@
+{% if results %}
+  <table class="autocomplete-table">
+    <thead>
+      <tr>
+        <th class="city-header">City</th>
+        <th class="region-header">Region</th>
+        <th class="country-header">Country</th>
+        <th class="coords-header">Coordinates</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for result in results %}
+        <tr class="result-row"
+            data-name="{{ result.full_display }}"
+            data-lat="{{ result.lat }}"
+            data-lon="{{ result.lon }}">
+          <td class="city-cell">{{ result.city }}</td>
+          <td class="region-cell">{{ result.admin1|default:"-" }}</td>
+          <td class="country-cell">{{ result.country }}</td>
+          <td class="coords-cell">{{ result.lat|floatformat:4 }}, {{ result.lon|floatformat:4 }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="p-2">No cities found matching your search.</div>
+{% endif %}

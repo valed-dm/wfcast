@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Search for Weather in a city:</h2>
+  <form method="post">
+    {% csrf_token %}
+    <label for="city-input">city name or lat,lon coordinates:</label>
+    <input type="text"
+           name="city"
+           id="city-input"
+           placeholder="Enter city name or lat,lon coordinates"
+           hx-get="{% url 'city_search' %}"
+           hx-trigger="input changed delay:300ms"
+           hx-target="#suggestions"
+           autocomplete="off" />
+    <input type="hidden" name="lat" id="lat" />
+    <input type="hidden" name="lon" id="lon" />
+    <button type="submit">Get Weather</button>
+  </form>
+  <div id="suggestions" class="mt-1"></div>
+  <script>
+    document.addEventListener('click', function(e) {
+      const row = e.target.closest('.result-row');
+      if (row) {
+        document.getElementById('city-input').value = row.dataset.name;
+        document.getElementById('lat').value = row.dataset.lat;
+        document.getElementById('lon').value = row.dataset.lon;
+        document.querySelector('.autocomplete-table').style.display = 'none';
+      }
+    });
+  </script>
+  <!-- Include HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+{% endblock content %}
