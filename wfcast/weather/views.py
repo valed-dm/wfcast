@@ -39,7 +39,7 @@ def _handle_city_form_submission(request: HttpRequest) -> HttpResponseRedirect:
 
     if not city_name_selected:
         logger.info("City form submitted with no city name.")
-        return redirect("city")
+        return redirect("city_search")
 
     location_data = prepare_location_data_for_session(
         city_name_selected,
