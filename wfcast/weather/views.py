@@ -2,6 +2,7 @@ import copy
 import logging
 from typing import Any
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.http import HttpRequest
@@ -9,6 +10,7 @@ from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.views import View
 
 from wfcast.weather.models import City
 from wfcast.weather.models import SearchHistory
@@ -28,75 +30,90 @@ MIN_AUTOCOMPLETE_QUERY_LENGTH = 2
 AUTOCOMPLETE_CACHE_TIMEOUT = 3600  # 1 hour in seconds
 
 
-def _handle_city_form_submission(request: HttpRequest) -> HttpResponseRedirect:
+class CitySearchView(View):
     """
-    Handles the POST request when the main city search form is submitted.
-    Sets location data in the session and redirects to fetch weather.
+    Handles city search functionalities:
+    - Renders the city search page on standard GET requests.
+    - Processes city selection form submissions on POST requests.
+    - Provides city autocomplete suggestions for HTMX GET requests.
     """
-    city_name_selected = request.POST.get("city", "").strip()
-    lat_str = request.POST.get("lat")
-    lon_str = request.POST.get("lon")
 
-    if not city_name_selected:
-        logger.info("City form submitted with no city name.")
-        return redirect("city_search")
+    template_name = "weather/city_search.html"
+    autocomplete_template_name = "weather/partials/autocomplete_results.html"
 
-    location_data = prepare_location_data_for_session(
-        city_name_selected,
-        lat_str,
-        lon_str,
-    )
-    request.session["location"] = location_data
-    request.session.modified = True  # Good practice when setting/modifying session data
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """
+        Handles GET requests.
+        Differentiates between standard page load and HTMX autocomplete.
+        """
+        if request.headers.get("HX-Request"):
+            return self._handle_autocomplete_request(request)
 
-    return redirect("get_weather")
+        # Standard GET request: render the main search page
+        return render(request, self.template_name)
 
+    @staticmethod
+    def post(
+        request: HttpRequest,
+        *args: Any,
+        **kwargs: Any,
+    ) -> HttpResponseRedirect:
+        """Handles POST requests for city selection form submission."""
+        city_name_selected = request.POST.get("city", "").strip()
+        lat_str = request.POST.get("lat")
+        lon_str = request.POST.get("lon")
 
-def _handle_autocomplete_request(request: HttpRequest) -> HttpResponse:
-    """
-    Handles HTMX GET requests for city autocomplete suggestions.
-    Fetches data from a cache or API and renders a partial template.
-    """
-    query = request.GET.get("city", "").strip()
+        if not city_name_selected:
+            logger.info("City form submitted with no city name.")
+            messages.warning(
+                request,
+                "Please enter a city name or select a suggestion.",
+            )
+            return redirect(
+                "city_search",
+            )
 
-    if len(query) < MIN_AUTOCOMPLETE_QUERY_LENGTH:
-        return HttpResponse("")  # Empty response clears HTMX target
+        location_data = prepare_location_data_for_session(
+            city_name_selected,
+            lat_str,
+            lon_str,
+        )
+        request.session["location"] = location_data
+        request.session.modified = True
 
-    cache_key = f"autocomplete_{query.lower()}"
-    cached_results: list[dict[str, Any]] | None = cache.get(cache_key)
-
-    if cached_results is not None:
-        return render(
-            request,
-            "weather/partials/autocomplete_results.html",
-            {"results": cached_results},
+        return redirect(
+            "get_weather",
         )
 
-    api_results = fetch_autocomplete_suggestions(query)
-    cache.set(cache_key, api_results, timeout=AUTOCOMPLETE_CACHE_TIMEOUT)
+    def _handle_autocomplete_request(self, request: HttpRequest) -> HttpResponse:
+        """
+        Handles HTMX GET requests for city autocomplete suggestions.
+        Fetches data from a cache or API and renders a partial template.
+        (Internal helper method for the class)
+        """
+        query = request.GET.get("city", "").strip()
 
-    return render(
-        request,
-        "weather/partials/autocomplete_results.html",
-        {"results": api_results},
-    )
+        if len(query) < MIN_AUTOCOMPLETE_QUERY_LENGTH:
+            return HttpResponse("")  # Empty response clears HTMX target
 
+        cache_key = f"autocomplete_{query.lower()}"
+        cached_results: list[dict[str, Any]] | None = cache.get(cache_key)
 
-def city_search_view(request: HttpRequest) -> HttpResponse:
-    """
-    Main view for city search.
-    - Renders the city search page on GET.
-    - Handles form submission (POST) to select a city.
-    - Handles HTMX requests (GET with HX-Request header) for autocomplete.
-    """
-    if request.method == "POST":
-        return _handle_city_form_submission(request)
+        if cached_results is not None:
+            return render(
+                request,
+                self.autocomplete_template_name,
+                {"results": cached_results},
+            )
 
-    if request.headers.get("HX-Request"):  # Check for HTMX request header
-        return _handle_autocomplete_request(request)
+        api_results = fetch_autocomplete_suggestions(query)
+        cache.set(cache_key, api_results, timeout=AUTOCOMPLETE_CACHE_TIMEOUT)
 
-    # Standard GET request: render the main search page
-    return render(request, "weather/city_search.html")
+        return render(
+            request,
+            self.autocomplete_template_name,
+            {"results": api_results},
+        )
 
 
 def get_weather_view(request: HttpRequest) -> HttpResponse:
