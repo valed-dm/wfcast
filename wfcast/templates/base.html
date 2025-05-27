@@ -28,7 +28,7 @@
       <link href="{% static 'css/project.css' %}" rel="stylesheet" />
     {% endblock css %}
     <!-- Le javascript
-    ================================================== -->
+  ================================================== -->
     {# Placed at the top of the document so pages load faster with defer #}
     {% block javascript %}
       <!-- Bootstrap JS -->
@@ -37,8 +37,8 @@
               integrity="sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g=="
               crossorigin="anonymous"
               referrerpolicy="no-referrer"></script>
-      <!-- Your stuff: Third-party javascript libraries go here -->
-      <!-- place project specific Javascript in this file -->
+      <!-- Your stuff: Third-party JavaScript libraries go here -->
+      <!-- place project-specific JavaScript in this file -->
       <script defer src="{% static 'js/project.js' %}"></script>
     {% endblock javascript %}
   </head>
@@ -56,14 +56,14 @@
                     aria-label="Toggle navigation">
               <span class="navbar-toggler-icon"></span>
             </button>
-            <a class="navbar-brand" href="{% url 'home' %}">wfcast</a>
+            <a class="navbar-brand" href="{% url 'home' %}"><i>City Weather Forecast</i></a>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
               <ul class="navbar-nav mr-auto">
-                <li class="nav-item active">
-                  <a class="nav-link" href="{% url 'home' %}">Home <span class="visually-hidden">(current)</span></a>
-                </li>
                 <li class="nav-item">
-                  <a class="nav-link" href="{% url 'about' %}">About</a>
+                  <a class="nav-link" href="{% url 'city_search' %}">City</a>
+                </li>
+                <li class="nav-item active">
+                  <a class="nav-link" href="{% url 'search_statistics' %}">Statistics<span class="visually-hidden">(current)</span></a>
                 </li>
                 {% if request.user.is_authenticated %}
                   <li class="nav-item">
@@ -104,7 +104,7 @@
         {% endif %}
         {% block main %}
           {% block content %}
-            <p>Use this document as a way to quick start any new project.</p>
+            <p>Choose a city using the "City" tab to get weather forecast data.</p>
           {% endblock content %}
         {% endblock main %}
       </div>
