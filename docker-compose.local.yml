@@ -1,7 +1,7 @@
 volumes:
-  wfcast_local_postgres_data: {}
-  wfcast_local_postgres_data_backups: {}
-
+  wfcast_local_postgres_data: { }
+  wfcast_local_postgres_data_backups: { }
+  wfcast_local_redis_data: { }
 
 services:
   django:
@@ -12,6 +12,11 @@ services:
     container_name: wfcast_local_django
     depends_on:
       - postgres
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
     volumes:
       - .:/app:z
     env_file:
@@ -32,3 +37,9 @@ services:
       - wfcast_local_postgres_data_backups:/backups
     env_file:
       - ./.envs/.local/.postgres
+
+  redis:
+    image: redis:alpine
+    container_name: wfcast_local_redis
+    volumes:
+      - wfcast_local_redis_data:/data
