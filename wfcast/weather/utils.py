@@ -179,33 +179,41 @@ def prepare_location_data_for_session(
     city_name_selected: str,
     lat_str: str | None,
     lon_str: str | None,
-) -> dict[str, str | float | None]:
+) -> dict[str, str | None]:
     """
     Prepares the location data dictionary to be stored in the session.
-    Attempts to convert lat/lon to float, stores as string if successful
-    for consistency.
+    Lat/lon are stored as strings if valid, otherwise None.
     """
-    location_data: dict[str, str | float | None] = {"display": city_name_selected}
+    location_data: dict[str, str | None] = {
+        "display": city_name_selected,
+        "lat": None,
+        "lon": None,
+    }
 
     if lat_str and lon_str:
+        # Replace comma with a period before attempting float conversion
+        clean_lat_str = lat_str.replace(",", ".")
+        clean_lon_str = lon_str.replace(",", ".")
         try:
-            # validation
-            parsed_lat = float(lat_str)
-            parsed_lon = float(lon_str)
-            location_data["lat"] = str(parsed_lat)
-            location_data["lon"] = str(parsed_lon)
+            # Validate that they *can* be converted to float
+            float_lat = float(clean_lat_str)
+            float_lon = float(clean_lon_str)
+
+            location_data["lat"] = str(float_lat)
+            location_data["lon"] = str(float_lon)
         except ValueError:
             warn_msg = (
-                f"Invalid lat/lon strings received for session:"
-                f" lat='{lat_str}', lon='{lon_str}' for city:"
-                f" {city_name_selected}"
+                f"Invalid lat/lon strings received for session: lat='{lat_str}',"
+                f" lon='{lon_str}' for city: {city_name_selected}."
+                f" Storing lat/lon as None."
             )
             logger.warning(warn_msg)
-            location_data["lat"] = None  # Explicitly set to None if parsing fails
-            location_data["lon"] = None
-    else:
-        location_data["lat"] = None
-        location_data["lon"] = None
+    elif city_name_selected:
+        info_msg = (
+            f"Lat/lon strings not provided for city: {city_name_selected}."
+            f" Storing lat/lon as None."
+        )
+        logger.info(info_msg)
 
     return location_data
 
