@@ -1,4 +1,8 @@
+from typing import Any
+from typing import cast
+
 from django.db import models
+from django.db.models import ForeignKey
 
 from wfcast.users.models import User
 
@@ -26,14 +30,14 @@ class City(models.Model):
         ]
         verbose_name_plural = "Cities"
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.full_display_name:
-            return self.full_display_name
+            return cast("str", self.full_display_name)
         if self.admin1:
             return f"{self.name}, {self.admin1}, {self.country}"
         return f"{self.name}, {self.country}"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # Automatically populate full_display_name
         if self.admin1:
             self.full_display_name = f"{self.name}, {self.admin1}, {self.country}"
@@ -43,6 +47,8 @@ class City(models.Model):
 
 
 class SearchHistory(models.Model):
+    user: ForeignKey[User]
+    city: ForeignKey[City]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     city = models.ForeignKey(City, on_delete=models.CASCADE)
     searched_at = models.DateTimeField(auto_now_add=True)
@@ -51,7 +57,7 @@ class SearchHistory(models.Model):
         ordering = ["-searched_at"]
         verbose_name_plural = "Search Histories"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.user.username if self.user else 'Anonymous'}"
             f" searched {self.city} at"
