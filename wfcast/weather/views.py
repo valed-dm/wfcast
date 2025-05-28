@@ -1,0 +1,273 @@
+import copy
+import logging
+from typing import Any
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
+from django.http import HttpRequest
+from django.http import HttpResponse
+from django.http import HttpResponseRedirect
+from django.shortcuts import redirect
+from django.shortcuts import render
+from django.views import View
+
+from wfcast.weather.models import City
+from wfcast.weather.models import SearchHistory
+from wfcast.weather.utils import fetch_autocomplete_suggestions
+from wfcast.weather.utils import fetch_weather_api_data
+from wfcast.weather.utils import get_last_searched_city_for_user
+from wfcast.weather.utils import parse_iso_strings_in_forecast_data
+from wfcast.weather.utils import parse_session_location_data
+from wfcast.weather.utils import prepare_location_data_for_session
+from wfcast.weather.utils import process_raw_weather_data
+from wfcast.weather.utils import update_city_and_history
+
+
+logger = logging.getLogger(__name__)
+
+
+MIN_AUTOCOMPLETE_QUERY_LENGTH = 2
+AUTOCOMPLETE_CACHE_TIMEOUT = 3600  # 1 hour in seconds
+
+
+class CitySearchView(View):
+    """
+    Handles city search functionalities:
+    - Renders the city search page on standard GET requests.
+    - Processes city selection form submissions on POST requests.
+    - Provides city autocomplete suggestions for HTMX GET requests.
+    """
+
+    template_name = "weather/city_search.html"
+    autocomplete_template_name = "weather/partials/autocomplete_results.html"
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """
+        Handles GET requests.
+        Differentiates between standard page load and HTMX autocomplete.
+        """
+        if request.headers.get("HX-Request"):
+            return self._handle_autocomplete_request(request)
+
+        # Standard GET request: render the main search page
+        context: dict[str, Any] = {}
+        last_search_weather_data: dict[str, Any] | None = None
+
+        if request.user.is_authenticated:
+            last_city_obj = get_last_searched_city_for_user(request.user)
+            if last_city_obj:
+                info_msg = (
+                    f"User {request.user.username} last searched for: {last_city_obj}"
+                )
+                logger.info(info_msg)
+                # Prepare location info for display and potential re-use
+                last_searched_city_info = {
+                    "display": str(last_city_obj),
+                    "lat": last_city_obj.latitude,
+                    "lon": last_city_obj.longitude,
+                    "name": last_city_obj.name,
+                    "admin1": last_city_obj.admin1,
+                    "country": last_city_obj.country,
+                }
+                # Fetch fresh weather for this last searched city
+                raw_weather = fetch_weather_api_data(
+                    last_city_obj.latitude,
+                    last_city_obj.longitude,
+                )
+                if raw_weather:
+                    temp_processed_weather = process_raw_weather_data(
+                        raw_weather,
+                    )
+                    if temp_processed_weather:
+                        from .utils import parse_iso_strings_in_forecast_data
+
+                        copied_weather = copy.deepcopy(
+                            temp_processed_weather,
+                        )
+                        parse_iso_strings_in_forecast_data(
+                            copied_weather.get("hourly_processed"),
+                            "time",
+                            is_date_only=False,
+                        )
+                        parse_iso_strings_in_forecast_data(
+                            copied_weather.get("daily_processed"),
+                            "day",
+                            is_date_only=True,
+                        )
+                        last_search_weather_data = copied_weather
+
+                context["last_searched_city_info"] = last_searched_city_info
+                context["last_search_weather_data"] = last_search_weather_data
+
+        return render(request, self.template_name, context)
+
+    @staticmethod
+    def post(
+        request: HttpRequest,
+        *args: Any,
+        **kwargs: Any,
+    ) -> HttpResponseRedirect:
+        """Handles POST requests for city selection form submission."""
+        city_name_selected = request.POST.get("city", "").strip()
+        lat_str = request.POST.get("lat")
+        lon_str = request.POST.get("lon")
+
+        if not city_name_selected:
+            logger.info("City form submitted with no city name.")
+            messages.warning(
+                request,
+                "Please enter a city name or select a suggestion.",
+            )
+            return redirect(
+                "city_search",
+            )
+
+        location_data = prepare_location_data_for_session(
+            city_name_selected,
+            lat_str,
+            lon_str,
+        )
+        request.session["location"] = location_data
+        request.session.modified = True
+
+        return redirect(
+            "get_weather",
+        )
+
+    def _handle_autocomplete_request(self, request: HttpRequest) -> HttpResponse:
+        """
+        Handles HTMX GET requests for city autocomplete suggestions.
+        Fetches data from a cache or API and renders a partial template.
+        (Internal helper method for the class)
+        """
+        query = request.GET.get("city", "").strip()
+
+        if len(query) < MIN_AUTOCOMPLETE_QUERY_LENGTH:
+            return HttpResponse("")  # Empty response clears HTMX target
+
+        cache_key = f"autocomplete_{query.lower()}"
+        cached_results: list[dict[str, Any]] | None = cache.get(cache_key)
+
+        if cached_results is not None:
+            return render(
+                request,
+                self.autocomplete_template_name,
+                {"results": cached_results},
+            )
+
+        api_results = fetch_autocomplete_suggestions(query)
+        cache.set(cache_key, api_results, timeout=AUTOCOMPLETE_CACHE_TIMEOUT)
+
+        return render(
+            request,
+            self.autocomplete_template_name,
+            {"results": api_results},
+        )
+
+
+def get_weather_view(request: HttpRequest) -> HttpResponse:
+    """
+    Orchestrates fetching and displaying weather:
+    1. Parses location from session.
+    2. Fetches raw weather data.
+    3. Processes raw data for display and session storage.
+    4. Updates database (City, SearchHistory).
+    5. Redirects to the result page.
+    """
+    session_location_input = request.session.get("location")
+
+    parsed_location = parse_session_location_data(session_location_input)
+    if not parsed_location:
+        logger.warning("Failed to parse location data from session.")
+        return redirect("city_search")
+
+    lat = parsed_location["lat"]
+    lon = parsed_location["lon"]
+
+    raw_weather_data = fetch_weather_api_data(lat, lon)
+    if not raw_weather_data:
+        err_msg = (
+            f"Failed to fetch weather API data for {parsed_location['display_name']}"
+        )
+        logger.error(err_msg)
+        return redirect("city_search")
+
+    processed_weather_data = process_raw_weather_data(raw_weather_data)
+    if not processed_weather_data:
+        err_msg = (
+            f"Failed to process weather data for {parsed_location['display_name']}."
+        )
+        logger.error(err_msg)
+        return redirect("city_search")
+
+    request.session["weather_data"] = processed_weather_data
+    request.session["location"] = {
+        "display": parsed_location["display_name"],
+        "lat": str(lat),
+        "lon": str(lon),
+        "name": parsed_location["name_component"],
+        "admin1": parsed_location["admin1_component"],
+        "country": parsed_location["country_component"],
+    }
+    request.session.modified = True
+
+    update_city_and_history(request.user, parsed_location)
+
+    return redirect("weather_results")
+
+
+def weather_results_view(request: HttpRequest) -> HttpResponse:
+    """
+    Displays processed weather results.
+    Retrieves location and weather data (with ISO date/time strings) from the session,
+    converts date/time strings to datetime/date objects for template rendering.
+    """
+    location_from_session: dict[str, Any] | None = request.session.get("location")
+    weather_data_from_session: dict[str, Any] | None = request.session.get(
+        "weather_data",
+    )
+
+    if not weather_data_from_session:
+        logger.warning("Weather data not found in session for weather_results_view.")
+        return render(
+            request,
+            "weather/results.html",
+            {"location": location_from_session, "weather": {}},
+        )
+
+    weather_for_template: dict[str, Any] = copy.deepcopy(weather_data_from_session)
+
+    parse_iso_strings_in_forecast_data(
+        weather_for_template.get("hourly_processed"),
+        "time",
+        is_date_only=False,
+    )
+    parse_iso_strings_in_forecast_data(
+        weather_for_template.get("daily_processed"),
+        "day",
+        is_date_only=True,
+    )
+
+    context: dict[str, Any] = {
+        "location": location_from_session,
+        "weather": weather_for_template,
+    }
+    return render(request, "weather/results.html", context)
+
+
+@login_required
+def search_statistics(request):
+    # Global statistics
+    top_searches = SearchHistory.get_search_stats()
+
+    # User-specific statistics
+    user_searches = SearchHistory.get_user_search_stats(request.user)
+
+    context = {
+        "top_searches": top_searches,
+        "user_searches": user_searches,
+        "total_searches": SearchHistory.objects.count(),
+        "unique_cities": City.objects.count(),
+    }
+    return render(request, "weather/statistics.html", context)

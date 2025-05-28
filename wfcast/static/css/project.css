@@ -1,5 +1,4 @@
-/* These styles are generated from project.scss. */
-
+/* ===== Base Styles ===== */
 .alert-debug {
   color: black;
   background-color: white;
@@ -10,4 +9,209 @@
   color: #b94a48;
   background-color: #f2dede;
   border-color: #eed3d7;
+}
+
+/* ===== Form Styles ===== */
+.weather-form {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+#city-input {
+  padding: 8px 12px;
+  width: 300px;
+  margin-right: 10px;
+}
+
+/* ===== Results Container ===== */
+.weather-results {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.weather-header {
+  background: #f8f9fa;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+/* ===== Forecast Styles ===== */
+.hourly-container {
+  display: flex;
+  overflow-x: auto;
+  gap: 15px;
+  padding: 10px 0;
+}
+
+.hour, .day {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.day {
+  margin-bottom: 10px;
+}
+
+/* ===== Statistics Page ===== */
+.statistics-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.global-stats, .user-stats {
+  background: #f8f9fa;
+  padding: 20px;
+  margin-bottom: 30px;
+  border-radius: 8px;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.stats-table th, .stats-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.stats-table th {
+  background-color: #e9ecef;
+}
+
+.search-history {
+  list-style: none;
+  padding: 0;
+}
+
+.search-history li {
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+}
+
+.search-history .timestamp {
+  color: #6c757d;
+  font-size: 0.9em;
+}
+
+/* ===== Autocomplete Styles ===== */
+#suggestions {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 5px;
+}
+
+.autocomplete-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.autocomplete-table th {
+  background-color: #f5f5f5;
+  padding: 8px 12px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+}
+
+.autocomplete-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.autocomplete-table tr {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.autocomplete-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.city-cell {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.region-cell {
+  color: #555;
+}
+
+.country-cell {
+  font-weight: 500;
+  color: #2c5e8a;
+}
+
+.coords-cell {
+  font-family: monospace;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.hourly-container {
+  display: flex;
+  overflow-x: auto;
+  gap: 15px;
+  padding: 10px 0;
+  scrollbar-width: thin;  /* For Firefox */
+}
+
+.hourly-container::-webkit-scrollbar {
+  height: 8px;  /* For Chrome/Safari */
+}
+
+.hourly-container::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+.hour {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  min-width: 60px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.hour p:first-child {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+
+.forecast-table {
+    width: 100%; /* Or a specific width if you don't want it full-width */
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 0.9em; /* Adjust as needed */
+}
+.forecast-table th, .forecast-table td {
+    border: 1px solid #ddd;
+    padding: 6px;
+    text-align: center;
+    white-space: nowrap; /* Prevents long day names from wrapping too much */
+}
+.forecast-table th { /* Row headers */
+    background-color: #f2f2f2;
+    text-align: left;
+    font-weight: bold;
+}
+.forecast-table thead td { /* Column headers (dates/times) */
+    font-weight: bold;
+    background-color: #f9f9f9;
 }

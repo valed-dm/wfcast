@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Search for Weather in a city:</h2>
+  <form method="post">
+    {% csrf_token %}
+    <label for="city-input">city name or lat,lon coordinates:</label>
+    <input type="text"
+           name="city"
+           id="city-input"
+           placeholder="Enter city name or lat,lon coordinates"
+           hx-get="{% url 'city_search' %}"
+           hx-trigger="input changed delay:300ms"
+           hx-target="#suggestions"
+           autocomplete="off" />
+    <input type="hidden" name="lat" id="lat" />
+    <input type="hidden" name="lon" id="lon" />
+    <button type="submit">Get Weather</button>
+  </form>
+  <div id="suggestions" class="mb-3"></div>
+  <div id="last_search_renewed_results">
+    {# --- Display Last Searched Weather for Authenticated Users --- #}
+    {% if request.user.is_authenticated and last_searched_city_info and last_search_weather_data %}
+      <hr class="my-4" />
+      <div class="last-search-section">
+        <h3>Your Last Searched Location: {{ last_searched_city_info.display }}</h3>
+        {% with weather=last_search_weather_data location=last_searched_city_info %}
+          {# Display Current Conditions from last search #}
+          {% if weather.current_weather %}
+            <div class="current-weather-summary mb-3">
+              <h4>Current Conditions</h4>
+              <p class="temperature">
+                Temperature:
+                {% if weather.current_weather.temperature is not None %}
+                  {{ weather.current_weather.temperature|floatformat:1 }}°C
+                {% else %}
+                  N/A
+                {% endif %}
+              </p>
+              <p class="wind">
+                Wind:
+                {% if weather.current_weather.windspeed is not None %}
+                  {{ weather.current_weather.windspeed|floatformat:1 }} km/h
+                  {% if weather.current_weather.winddirection is not None %}
+                    ({{ weather.current_weather.winddirection }}
+                    °)
+                  {% endif %}
+                {% else %}
+                  N/A
+                {% endif %}
+              </p>
+            </div>
+          {% endif %}
+          {# Display a snippet of Hourly Forecast - e.g., next 3 hours #}
+          {% if weather.hourly_processed %}
+            <div class="forecast-section mb-3">
+              <h4>Hourly (Next few hours)</h4>
+              <div class="table-responsive">
+                <table class="forecast-table hourly-forecast-table table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      {% for hour_data in weather.hourly_processed|slice:":3" %}
+                        {# Show first 3 #}
+                        <td>
+                          {% if hour_data.time %}
+                            {{ hour_data.time|date:"H:i" }}
+                          {% else %}
+                            --:--
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th>Temp (°C)</th>
+                      {% for hour_data in weather.hourly_processed|slice:":3" %}
+                        <td>
+                          {% if hour_data.temperature is not None %}
+                            {{ hour_data.temperature|floatformat:0 }}
+                          {% else %}
+                            --
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                    <tr>
+                      <th>Precip. (%)</th>
+                      {% for hour_data in weather.hourly_processed|slice:":3" %}
+                        <td>
+                          {% if hour_data.precipitation_probability is not None %}
+                            {{ hour_data.precipitation_probability|floatformat:0 }}
+                          {% else %}
+                            --
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {% if not weather.hourly_processed|slice:":3" %}<p>Hourly details are not available.</p>{% endif %}
+            </div>
+          {% endif %}
+          {# Link to full forecast page (optional) #}
+        {% endwith %}
+      </div>
+    {% elif request.user.is_authenticated and last_searched_city_info and not last_search_weather_data %}
+      <hr class="my-4" />
+      <div class="last-search-section">
+        <h3>Your Last Searched Location: {{ last_searched_city_info.display }}</h3>
+        <p>Could not retrieve current weather details for this location at the moment.</p>
+      </div>
+    {% elif request.user.is_authenticated %}
+      <p>You have no recent searches.</p>
+    {% endif %}
+  </div>
+  <script>
+    document.addEventListener('click', function(e) {
+      const row = e.target.closest('.result-row');
+      if (row) {
+        document.getElementById('city-input').value = row.dataset.name;
+        document.getElementById('lat').value = row.dataset.lat;
+        document.getElementById('lon').value = row.dataset.lon;
+        document.querySelector('.autocomplete-table').style.display = 'none';
+      }
+    });
+  </script>
+  <!-- Include HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+{% endblock content %}

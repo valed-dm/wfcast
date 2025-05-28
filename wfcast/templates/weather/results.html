@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="weather-container">
+    {% if location and weather %}
+      <div class="weather-header">
+        <h2>Weather for {{ location.display }}</h2>
+        {% if location.lat is not None and location.lon is not None %}
+          <p class="coordinates">
+            Coordinates: Lat: {{ location.lat|floatformat:2 }}, Lon: {{ location.lon|floatformat:2 }}
+            {% if weather.elevation is not None %}, Elevation: {{ weather.elevation|floatformat:0 }} m{% endif %}
+          </p>
+        {% endif %}
+      </div>
+      {# --- CURRENT WEATHER --- #}
+      <div class="current-weather-summary">
+        <h3>Current Conditions</h3>
+        <p class="temperature">
+          Temperature:
+          {% if weather.current_weather.temperature is not None %}
+            {{ weather.current_weather.temperature|floatformat:1 }}°C
+          {% else %}
+            N/A
+          {% endif %}
+        </p>
+        <p class="wind">
+          Wind:
+          {% if weather.current_weather.windspeed is not None %}
+            {{ weather.current_weather.windspeed|floatformat:1 }} km/h
+            {% if weather.current_weather.winddirection is not None %}({{ weather.current_weather.winddirection }}°){% endif %}
+          {% else %}
+            N/A
+          {% endif %}
+        </p>
+      </div>
+      <hr />
+      {# --- HOURLY FORECAST - HORIZONTAL TABLE (with wind) --- #}
+      {% if weather.hourly_processed %}
+        <div class="forecast-section">
+          <h3>Hourly Forecast (Next 24 Hours)</h3>
+          <div class="table-responsive">
+            <table class="forecast-table hourly-forecast-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  {% for hour_data in weather.hourly_processed|slice:":24" %}
+                    <td>
+                      {% if hour_data.time %}
+                        {{ hour_data.time|date:"H:i" }}
+                      {% else %}
+                        --:--
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Icon/Code</th>
+                  {% for hour_data in weather.hourly_processed|slice:":24" %}
+                    <td>
+                      {% if hour_data.weather_code is not None %}
+                        {{ hour_data.weather_code }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+                <tr>
+                  <th>Temp (°C)</th>
+                  {% for hour_data in weather.hourly_processed|slice:":24" %}
+                    <td>
+                      {% if hour_data.temperature is not None %}
+                        {{ hour_data.temperature|floatformat:0 }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+                <tr>
+                  <th>Precip. (%)</th>
+                  {% for hour_data in weather.hourly_processed|slice:":24" %}
+                    <td>
+                      {% if hour_data.precipitation_probability is not None %}
+                        {{ hour_data.precipitation_probability|floatformat:0 }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+                {# NEW ROWS FOR WIND DATA #}
+                <tr>
+                  <th>Wind (km/h)</th>
+                  {% for hour_data in weather.hourly_processed|slice:":24" %}
+                    <td>
+                      {% if hour_data.windspeed is not None %}
+                        {{ hour_data.windspeed|floatformat:0 }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+                <tr>
+                  <th>Wind Dir. (°)</th>
+                  {% for hour_data in weather.hourly_processed|slice:":24" %}
+                    <td>
+                      {% if hour_data.winddirection is not None %}
+                        {{ hour_data.winddirection|floatformat:0 }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {% if not weather.hourly_processed|slice:":24" %}
+            <p>Hourly forecast data is not available (no data in processed list).</p>
+          {% endif %}
+        </div>
+      {% else %}
+        <p>Hourly forecast data is not available (processed list missing).</p>
+      {% endif %}
+      <hr />
+      {# --- DAILY FORECAST - HORIZONTAL TABLE (no change needed here for wind) --- #}
+      {% if weather.daily_processed %}
+        <div class="forecast-section">
+          <h3>Daily Forecast (Next 7 Days)</h3>
+          <div class="table-responsive">
+            <table class="forecast-table daily-forecast-table">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  {% for day_data in weather.daily_processed|slice:":7" %}
+                    <td>
+                      {% if day_data.day %}
+                        {{ day_data.day|date:"D M j" }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Icon/Code</th>
+                  {% for day_data in weather.daily_processed|slice:":7" %}
+                    <td>
+                      {% if day_data.weather_code is not None %}
+                        {{ day_data.weather_code }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+                <tr>
+                  <th>High (°C)</th>
+                  {% for day_data in weather.daily_processed|slice:":7" %}
+                    <td>
+                      {% if day_data.temp_max is not None %}
+                        {{ day_data.temp_max|floatformat:0 }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+                <tr>
+                  <th>Low (°C)</th>
+                  {% for day_data in weather.daily_processed|slice:":7" %}
+                    <td>
+                      {% if day_data.temp_min is not None %}
+                        {{ day_data.temp_min|floatformat:0 }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {% if not weather.daily_processed|slice:":7" %}
+            <p>Daily forecast data is not available (no data in processed list).</p>
+          {% endif %}
+        </div>
+      {% else %}
+        <p>Daily forecast data is not available (processed list missing).</p>
+      {% endif %}
+    {% else %}
+      <p>Weather information is currently unavailable. Please try your search again.</p>
+    {% endif %}
+  </div>
+{% endblock content %}

@@ -7,6 +7,73 @@ Someplace weather forecast Django example
 
 License: MIT
 
+## Прогноз погоды.
+
+Пользователь вводит название города, используя автодополнение.
+После подтверждения выбора перенаправляется на страницу с результатами:
+- текущее состояние
+- почасовой прогноз
+- недельный прогноз
+
+
+[<img src="docs/images/img_01.png" width="600"/>]()
+
+[<img src="docs/images/img_02.png" width="600"/>]()
+
+[<img src="docs/images/img_03.png" width="600"/>]()
+
+[<img src="docs/images/img_04.png" width="600"/>]()
+
+[<img src="docs/images/img_05.png" width="600"/>]()
+
+[<img src="docs/images/img_06.png" width="600"/>]()
+
+Выделена страница статистики доступ к кторой разрешен авторизованным пользователям.
+Авторизация пользователя по email.
+
+[<img src="docs/images/img_07.png" width="600"/>]()
+
+Для авторизованного пользователя доступна краткая обновленная сводка последнего поиска:
+
+[<img src="docs/images/img_13.png" width="600"/>]()
+
+Использованы:
+- Cookiecutter Django для быстрой настройки.
+- Ruff
+- djlint
+- Safety (CI)
+- Gitleaks (CI)
+- HTMX для автодополнений (см. *templates/weather/city_search.html*)
+- Docker Compose
+
+## Запуск
+
+Образ на DockerHub не размещал, поэтому скопировать репозиторий
+
+```bash
+gh repo clone valed-dm/wfcast
+git switch dev
+
+docker-compose -f docker-compose.local.yml build
+docker-compose -f docker-compose.local.yml up -d
+```
+[<img src="docs/images/img_08.png" width="600"/>]()
+
+[<img src="docs/images/img_09.png" width="600"/>]()
+
+[<img src="docs/images/img_10.png" width="600"/>]()
+
+[<img src="docs/images/img_11.png" width="600"/>]()
+
+[<img src="docs/images/img_12.png" width="600"/>]()
+
+
+### Не сделано:
+ - REST для статистики
+
+Неочевидный дедлайн, пора сдавать.
+Спасибо за задание.
+
 ## Settings
 
 Moved to [settings](https://cookiecutter-django.readthedocs.io/en/latest/1-getting-started/settings.html).

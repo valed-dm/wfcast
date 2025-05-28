@@ -20,15 +20,15 @@ urlpatterns = [
     path("users/", include("wfcast.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
     # Your stuff: custom urls includes go here
-    # ...
+    path("weather/", include("wfcast.weather.urls")),
     # Media files
     *static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT),
 ]
 
 
 if settings.DEBUG:
-    # This allows the error pages to be debugged during development, just visit
-    # these url in browser to see how these error pages look like.
+    # This allows the error pages to be debugged during development, visit
+    # these url in browser to see what these error pages look like.
     urlpatterns += [
         path(
             "400/",

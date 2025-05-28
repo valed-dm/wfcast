@@ -81,7 +81,6 @@ plugins = ["django_coverage_plugin"]
 
 [tool.mypy]
 config_file = "mypy.ini"
-files = ["wfcast", "tests"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings.test"

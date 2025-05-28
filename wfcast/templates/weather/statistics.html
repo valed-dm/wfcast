@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="statistics-container">
+    <h2>Search Statistics</h2>
+    <div class="global-stats">
+      <h3>Global Statistics</h3>
+      <p>Total searches: {{ total_searches }}</p>
+      <p>Unique cities: {{ unique_cities }}</p>
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>City</th>
+            <th>Search Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for search in top_searches %}
+            <tr>
+              <td>{{ search.city__full_display_name }}</td>
+              <td>{{ search.search_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="user-stats">
+      <h3>Your Recent Searches</h3>
+      <ul class="search-history">
+        {% for search in user_searches %}
+          <li>
+            <span class="city">{{ search.city }}</span>
+            <span class="timestamp">{{ search.searched_at|date:"Y-m-d H:i" }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+{% endblock content %}
