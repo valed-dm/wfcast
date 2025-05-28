@@ -5,6 +5,7 @@ from typing import Any
 
 import requests
 
+from wfcast.users.models import User
 from wfcast.weather.models import City
 from wfcast.weather.models import SearchHistory
 
@@ -604,3 +605,22 @@ def parse_iso_strings_in_forecast_data(
             )
             logger.warning(warn_msg)
             entry[datetime_key] = None
+
+
+def get_last_searched_city_for_user(user: User) -> City | None:
+    """
+    Retrieves the City object for the most recent search by a given user.
+    Returns None if no search history is found for the user.
+    """
+    if not user or not user.is_authenticated:
+        return None
+
+    last_search = (
+        SearchHistory.objects.filter(user=user)
+        .select_related("city")
+        .order_by("-searched_at")
+        .first()
+    )
+    if last_search:
+        return last_search.city
+    return None

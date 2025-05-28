@@ -16,6 +16,7 @@ from wfcast.weather.models import City
 from wfcast.weather.models import SearchHistory
 from wfcast.weather.utils import fetch_autocomplete_suggestions
 from wfcast.weather.utils import fetch_weather_api_data
+from wfcast.weather.utils import get_last_searched_city_for_user
 from wfcast.weather.utils import parse_iso_strings_in_forecast_data
 from wfcast.weather.utils import parse_session_location_data
 from wfcast.weather.utils import prepare_location_data_for_session
@@ -50,7 +51,56 @@ class CitySearchView(View):
             return self._handle_autocomplete_request(request)
 
         # Standard GET request: render the main search page
-        return render(request, self.template_name)
+        context: dict[str, Any] = {}
+        last_search_weather_data: dict[str, Any] | None = None
+
+        if request.user.is_authenticated:
+            last_city_obj = get_last_searched_city_for_user(request.user)
+            if last_city_obj:
+                info_msg = (
+                    f"User {request.user.username} last searched for: {last_city_obj}"
+                )
+                logger.info(info_msg)
+                # Prepare location info for display and potential re-use
+                last_searched_city_info = {
+                    "display": str(last_city_obj),
+                    "lat": last_city_obj.latitude,
+                    "lon": last_city_obj.longitude,
+                    "name": last_city_obj.name,
+                    "admin1": last_city_obj.admin1,
+                    "country": last_city_obj.country,
+                }
+                # Fetch fresh weather for this last searched city
+                raw_weather = fetch_weather_api_data(
+                    last_city_obj.latitude,
+                    last_city_obj.longitude,
+                )
+                if raw_weather:
+                    temp_processed_weather = process_raw_weather_data(
+                        raw_weather,
+                    )
+                    if temp_processed_weather:
+                        from .utils import parse_iso_strings_in_forecast_data
+
+                        copied_weather = copy.deepcopy(
+                            temp_processed_weather,
+                        )
+                        parse_iso_strings_in_forecast_data(
+                            copied_weather.get("hourly_processed"),
+                            "time",
+                            is_date_only=False,
+                        )
+                        parse_iso_strings_in_forecast_data(
+                            copied_weather.get("daily_processed"),
+                            "day",
+                            is_date_only=True,
+                        )
+                        last_search_weather_data = copied_weather
+
+                context["last_searched_city_info"] = last_searched_city_info
+                context["last_search_weather_data"] = last_search_weather_data
+
+        return render(request, self.template_name, context)
 
     @staticmethod
     def post(
