@@ -15,15 +15,15 @@ dependencies = [
     "Pillow==11.2.1",
     "argon2-cffi==23.1.0",
     "whitenoise==6.9.0",
-    "redis==6.1.0",
-    "hiredis==3.2.0",
+    "redis==6.2.0",
+    "hiredis==3.2.1",
     # Django core
-    "django==5.1.9",
+    "django==5.2.3",
     "django-environ==0.12.0",
     "django-model-utils==5.0.0",
-    "django-allauth[mfa]==65.8.1",
+    "django-allauth[mfa]==65.9.0",
     "django-crispy-forms==2.4",
-    "crispy-bootstrap5==2025.4",
+    "crispy-bootstrap5==2025.6",
     "django-redis==5.4.0",
 ]
 
@@ -38,24 +38,24 @@ dev = [
     "Werkzeug[watchdog]==3.1.3",
     "ipdb==0.13.13",
     # Testing
-    "mypy==1.15.0",
+    "mypy==1.16.0",
     "django-stubs[compatible-mypy]==5.2.0",
-    "django-types==0.20.0",
-    "pytest==8.3.5",
+    "django-types==0.21.0",
+    "pytest==8.4.0",
     "pytest-sugar==1.0.0",
     # Documentation
     "sphinx==8.2.3",
     "sphinx-autobuild==2024.10.3",
     # Code quality
-    "ruff==0.11.11",
-    "coverage==7.8.1",
+    "ruff==0.11.13",
+    "coverage==7.9.1",
     "djlint==1.36.4",
     "pre-commit==4.2.0",
     # Django dev tools
-    "factory-boy==3.3.2",
+    "factory-boy==3.3.3",
     "django-debug-toolbar==5.2.0",
     "django-extensions==4.1",
-    "django-coverage-plugin==3.1.0",
+    "django-coverage-plugin==3.1.1",
     "pytest-django==4.11.1",
 ]
 
