@@ -53,7 +53,7 @@ dev = [
     "pre-commit==4.2.0",
     # Django dev tools
     "factory-boy==3.3.2",
-    "django-debug-toolbar==5.2.0",
+    "django-debug-toolbar==6.0.0",
     "django-extensions==4.1",
     "django-coverage-plugin==3.1.0",
     "pytest-django==4.11.1",
