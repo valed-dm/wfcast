@@ -24,7 +24,7 @@ dependencies = [
     "django-allauth[mfa]==65.8.1",
     "django-crispy-forms==2.4",
     "crispy-bootstrap5==2025.4",
-    "django-redis==5.4.0",
+    "django-redis==6.0.0",
 ]
 
 [project.optional-dependencies]
